@@ -11,6 +11,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ChromeOptions as Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
@@ -43,8 +44,28 @@ class GoogleMapsScraper:
         self.driver.quit()
 
         return True
+    
+    def __get_logger(self):
+        logger = logging.getLogger("GoogleMapsScraper")
+        logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
+
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+
+        if not logger.handlers:
+            logger.addHandler(ch)
+
+        return logger
+
 
     def sort_by(self, url, ind):
+        """
+        TODO: Fungsi ini digunakan untuk menekan tombol filter pada ulasan 
+        untuk mengurutkan ulasan berdasarkan preferensi
+        """
 
         self.driver.get(url)
         self.__click_on_cookie_agreement()
@@ -55,19 +76,31 @@ class GoogleMapsScraper:
         clicked = False
         tries = 0
         while not clicked and tries < MAX_RETRY:
+            menu_bt = None
             try:
-                menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
-                menu_bt.click()
+                menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@aria-label=\'Most relevant\']')))
+            except TimeoutException:
+                self.logger.warn('Failed to find Most relevant')
+                try:
+                    menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
+                except TimeoutException:
+                    self.logger.warn('Failed to find Most relevant or Sort Button')
+            
+            if menu_bt:
+                try:
+                    menu_bt.click()
+                    clicked = True
+                    time.sleep(3)
+                except Exception as e:
+                    self.logger.warn(f'Failed to click the button: {e}')
+            tries += 1
 
-                clicked = True
-                time.sleep(3)
-            except Exception as e:
-                tries += 1
-                self.logger.warn('Failed to click sorting button')
+        if not clicked:
+            return -1
 
-            # failed to open the dropdown
-            if tries == MAX_RETRY:
-                return -1
+            # # failed to open the dropdown
+            # if tries == MAX_RETRY:
+            #     return -1
 
         #  element of the list specified according to ind
         recent_rating_bt = self.driver.find_elements(By.XPATH, '//div[@role=\'menuitemradio\']')[ind]
@@ -143,13 +176,18 @@ class GoogleMapsScraper:
         rblock = response.find_all('div', class_='jftiEf fontBodyMedium')
         parsed_reviews = []
         for index, review in enumerate(rblock):
+#             print(f"""===============INDEX===============
+# {index}
+# ========================REVIEW=============================
+# {review}
+# =========================END===============================""")
             if index >= offset:
                 r = self.__parse(review)
                 parsed_reviews.append(r)
 
                 # logging to std out
+                # print==============
                 print(r)
-
         return parsed_reviews
 
 
@@ -167,40 +205,47 @@ class GoogleMapsScraper:
 
         place_data = self.__parse_place(resp, url)
 
+        # print(place_data.prettify())
+
         return place_data
 
 
     def __parse(self, review):
 
+#         print(f"""======================= DATA YANG AKAN DI PARSE ====================
+# {review}
+#               ======================= END DATA YANG AKAN DI PARSE ====================""")
         item = {}
 
         try:
-            # TODO: Subject to changes
+            # TODO: Mengambil elemen yang berisi id review
             id_review = review['data-review-id']
         except Exception as e:
             id_review = None
 
         try:
-            # TODO: Subject to changes
+            # TODO: Mengambil user name
             username = review['aria-label']
         except Exception as e:
             username = None
 
         try:
-            # TODO: Subject to changes
+            # TODO: Mengambil text berisi review dari user
             review_text = self.__filter_string(review.find('span', class_='wiI7pd').text)
         except Exception as e:
             review_text = None
-
+        
         try:
-            # TODO: Subject to changes
-            rating = float(review.find('span', class_='kvMYJc')['aria-label'].split(' ')[0])
+            # TODO: Mengabil rating yang diberikan user
+            # rating = float(review.find('span', class_='fzvQIb')['aria-label'].split(' ')[0])
+            rating = review.find('span', class_='fzvQIb').get_text()
         except Exception as e:
+            # print("===============GAGAL DAPAT RATING======================")
             rating = None
 
         try:
             # TODO: Subject to changes
-            relative_date = review.find('span', class_='rsqaWe').text
+            relative_date = review.find('span', class_='xRkPPb').text
         except Exception as e:
             relative_date = None
 
@@ -335,11 +380,19 @@ class GoogleMapsScraper:
             self.driver.execute_script("arguments[0].click();", button)
 
 
+    # def __scroll(self):
+    #     # TODO: Subject to changes
+    #     scrollable_div = self.driver.find_element(By.CSS_SELECTOR,'div.m6QErb.DxyBCb.kA9KIf.dS8AEf')
+    #     self.driver.execute_script('arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div)
+    #     #self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    #     print("[DEBUG] Scroll function is running...")
     def __scroll(self):
         # TODO: Subject to changes
         scrollable_div = self.driver.find_element(By.CSS_SELECTOR,'div.m6QErb.DxyBCb.kA9KIf.dS8AEf')
-        self.driver.execute_script('arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div)
-        #self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        for _ in range(MAX_SCROLLS):
+            self.driver.execute_script('arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div)
+            time.sleep(1)
+
 
 
     def __get_logger(self):

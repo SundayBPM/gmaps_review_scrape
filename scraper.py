@@ -26,7 +26,7 @@ def csv_writer(source_field, ind_sort_by, outpath):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Google Maps reviews scraper.')
-    parser.add_argument('--N', type=int, default=100, help='Number of reviews to scrape')
+    parser.add_argument('--N', type=int, default=10, help='Number of reviews to scrape')
     parser.add_argument('--i', type=str, default='urls.txt', help='target URLs file')
     parser.add_argument('--o', type=str, default='output.csv', help='output directory')
     parser.add_argument('--sort_by', type=str, default='newest', help='most_relevant, newest, highest_rating or lowest_rating')
@@ -44,9 +44,12 @@ if __name__ == '__main__':
         with open(args.i, 'r') as urls_file:
             for url in urls_file:
                 if args.place:
+                    # TODO: Apabila  menggunakan --places maka baris program ini akan di eksekusi
                     print(scraper.get_account(url))
                 else:
+                    # TODO: Apabila tidak menggunakan --places maka baris program ini akan di eksekusi
                     error = scraper.sort_by(url, ind[args.sort_by])
+                    print(f"========================================= INI VAR ERROR {error} ==================================================")
 
                     if error == 0:
 
@@ -56,11 +59,13 @@ if __name__ == '__main__':
                         #    scraper.more_reviews()
 
                         while n < args.N:
+                            print(f" =========================== Jumlah Review yang dibutuhkan {args.N} =================================================")
 
                             # logging to std out
                             print(colored('[Review ' + str(n) + ']', 'cyan'))
-
+                            print(f"======== MENGAMBIL REVIEW BARIS KE {n} =================")
                             reviews = scraper.get_reviews(n)
+                            # print(f"======== HASI DARI VAR reviews {reviews} =================")
                             if len(reviews) == 0:
                                 break
 
