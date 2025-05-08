@@ -387,11 +387,19 @@ class GoogleMapsScraper:
     #     #self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     #     print("[DEBUG] Scroll function is running...")
     def __scroll(self):
-        # TODO: Subject to changes
-        scrollable_div = self.driver.find_element(By.CSS_SELECTOR,'div.m6QErb.DxyBCb.kA9KIf.dS8AEf')
-        for _ in range(MAX_SCROLLS):
+        scrollable_div = self.driver.find_element(By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf')
+        last_height = 0
+        for i in range(MAX_SCROLLS):
             self.driver.execute_script('arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div)
             time.sleep(1)
+
+            # cek apakah halaman sudah tidak bisa discroll lagi
+            new_height = self.driver.execute_script('return arguments[0].scrollTop', scrollable_div)
+            if new_height == last_height:
+                self.logger.info(f"Stopping scroll at iteration {i} — no more content to load.")
+                break
+            last_height = new_height
+
 
 
 
@@ -421,6 +429,13 @@ class GoogleMapsScraper:
 
         if not self.debug:
             options.add_argument("--headless")
+            options.add_argument('--headless=new')  # gunakan headless baru
+            options.add_argument('--disable-gpu')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-images')
+            # options.add_argument('--disable-features=TranslateUI')
         else:
             options.add_argument("--window-size=1366,768")
 
