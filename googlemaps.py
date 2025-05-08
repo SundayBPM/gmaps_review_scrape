@@ -424,31 +424,27 @@ class GoogleMapsScraper:
         return logger
 
 
-    def __get_driver(self, debug=False):
-        options = Options()
+    def __get_driver(self):
+    options = Options()
 
-        if not self.debug:
-            options.add_argument("--headless")
-            options.add_argument('--headless=new')  # gunakan headless baru
-            options.add_argument('--disable-gpu')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-extensions')
-            options.add_argument('--disable-images')
-            # options.add_argument('--disable-features=TranslateUI')
-        else:
-            options.add_argument("--window-size=1366,768")
+    if not self.debug:
+        options.add_argument("--headless")
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--blink-settings=imagesEnabled=false")
+    else:
+        options.add_argument("--window-size=1366,768")
 
-        options.add_argument("--disable-notifications")
-        #options.add_argument("--lang=en-GB")
-        options.add_argument("--accept-lang=en-GB")
-        input_driver = webdriver.Chrome(service=Service(), options=options)
+    options.add_argument("--disable-notifications")
+    options.add_argument("--accept-lang=en-GB")
+    
+    input_driver = webdriver.Chrome(service=Service(), options=options)
+    input_driver.get(GM_WEBPAGE)
 
-         # click on google agree button so we can continue (not needed anymore)
-         # EC.element_to_be_clickable((By.XPATH, '//span[contains(text(), "I agree")]')))
-        input_driver.get(GM_WEBPAGE)
-
-        return input_driver
+    return input_driver
 
     # cookies agreement click
     def __click_on_cookie_agreement(self):
