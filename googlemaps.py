@@ -80,7 +80,7 @@ class GoogleMapsScraper:
             try:
                 menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@aria-label=\'Most relevant\']')))
             except TimeoutException:
-                self.logger.warn('Failed to find Most relevant')
+                # self.logger.warn('Failed to find Most relevant')
                 try:
                     menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
                 except TimeoutException:
@@ -176,18 +176,13 @@ class GoogleMapsScraper:
         rblock = response.find_all('div', class_='jftiEf fontBodyMedium')
         parsed_reviews = []
         for index, review in enumerate(rblock):
-#             print(f"""===============INDEX===============
-# {index}
-# ========================REVIEW=============================
-# {review}
-# =========================END===============================""")
             if index >= offset:
                 r = self.__parse(review)
                 parsed_reviews.append(r)
 
                 # logging to std out
                 # print==============
-                print(r)
+                # print(r)
         return parsed_reviews
 
 
@@ -211,10 +206,6 @@ class GoogleMapsScraper:
 
 
     def __parse(self, review):
-
-#         print(f"""======================= DATA YANG AKAN DI PARSE ====================
-# {review}
-#               ======================= END DATA YANG AKAN DI PARSE ====================""")
         item = {}
 
         try:
@@ -222,45 +213,74 @@ class GoogleMapsScraper:
             id_review = review['data-review-id']
         except Exception as e:
             id_review = None
+            self.logger.warn('Failed to find and parse id_review')
 
         try:
             # TODO: Mengambil user name
             username = review['aria-label']
         except Exception as e:
+            self.logger.warn('Failed to find and parse username')
             username = None
-
+        
         try:
             # TODO: Mengambil text berisi review dari user
             review_text = self.__filter_string(review.find('span', class_='wiI7pd').text)
         except Exception as e:
             review_text = None
-        
+            self.logger.warn('Failed to find and parse review_text')
+
+        try:
+            # TODO: MeMengambil informasi tambahan dari review
+            # more_review_text = self.__filter_string(review.find('div', attrs={'jslog':'127691'}).text)
+            more_review_text = self.__filter_string(" ".join(review.find('div', attrs={'jslog':'127691'}).stripped_strings))
+            # print("=========================="," ".join(review.find('div', attrs={'jslog':'127691'}).stripped_strings), "=========================")
+        except Exception as e:
+            more_review_text = None
+            self.logger.warn('Failed to find and parse review_text')
+
+        try:
+            # TODO: MeMengambil informasi tambahan dari review (type_vocation)
+            type_vocation = self.__filter_string(" ".join(review.find('div', attrs={'jslog':'127691'}).stripped_strings))
+            if "Trip type" in type_vocation:
+                type_vocation = type_vocation.split('Trip type')[1].strip().split()[0]
+            else:
+                type_vocation = None
+        except Exception as e:
+            type_vocation = None
+            self.logger.warn('Failed to find and parse review_text')
+
         try:
             # TODO: Mengabil rating yang diberikan user
             # rating = float(review.find('span', class_='fzvQIb')['aria-label'].split(' ')[0])
             rating = review.find('span', class_='fzvQIb').get_text()
         except Exception as e:
-            # print("===============GAGAL DAPAT RATING======================")
             rating = None
+            self.logger.warn('Failed to find and parse rating')
+            
 
         try:
             # TODO: Subject to changes
             relative_date = review.find('span', class_='xRkPPb').text
         except Exception as e:
             relative_date = None
+            self.logger.warn('Failed to find and parse relative_date')
 
         try:
             n_reviews = review.find('div', class_='RfnDt').text.split(' ')[3]
         except Exception as e:
             n_reviews = 0
+            self.logger.warn('Failed to find and parse n_reviews')
 
         try:
             user_url = review.find('button', class_='WEBjve')['data-href']
         except Exception as e:
             user_url = None
+            self.logger.warn('Failed to find and parse user_url')
 
         item['id_review'] = id_review
         item['caption'] = review_text
+        item['more_caption'] = more_review_text
+        item['type_vocation'] = type_vocation
 
         # depends on language, which depends on geolocation defined by Google Maps
         # custom mapping to transform into date should be implemented
@@ -373,11 +393,12 @@ class GoogleMapsScraper:
 
     # expand review description
     def __expand_reviews(self):
-        # use XPath to load complete reviews
-        # TODO: Subject to changes
         buttons = self.driver.find_elements(By.CSS_SELECTOR,'button.w8nwRe.kyuRq')
         for button in buttons:
             self.driver.execute_script("arguments[0].click();", button)
+
+
+
 
 
     # def __scroll(self):
@@ -428,7 +449,7 @@ class GoogleMapsScraper:
         options = Options()
 
         if not self.debug:
-            options.add_argument("--headless")
+            # options.add_argument("--headless")
             options.add_argument('--headless=new')  # gunakan headless baru
             options.add_argument('--disable-gpu')
             options.add_argument('--no-sandbox')
@@ -436,6 +457,8 @@ class GoogleMapsScraper:
             options.add_argument('--disable-extensions')
             options.add_argument('--disable-images')
             # options.add_argument('--disable-features=TranslateUI')
+            options.add_argument('--disable-blink-features=AutomationControlled')
+
         else:
             options.add_argument("--window-size=1366,768")
 
